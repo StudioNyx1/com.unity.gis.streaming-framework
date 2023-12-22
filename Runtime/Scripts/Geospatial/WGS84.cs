@@ -16,9 +16,9 @@ namespace Unity.Geospatial.Streaming
     {
         private const double k_a = 6_378_137.0;
 
-        private const double k_b = 6_356_752.314_140;
+        private const double k_b = (1 - k_f) * k_a;
 
-        private const double k_f = (k_a - k_b) / k_a;
+        private const double k_f = 1 / 298.257223563;
 
         private const double k_ff = (1.0 - k_f) * (1.0 - k_f);
 
