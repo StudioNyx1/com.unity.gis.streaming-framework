@@ -23,6 +23,11 @@ namespace Unity.Geospatial.Streaming
         private const double k_ff = (1.0 - k_f) * (1.0 - k_f);
 
         private const double k_e2 = 1 - (k_b * k_b)/(k_a * k_a);
+        
+        private const double k_HALFE2 = k_e2 / 2;
+        private const double k_P1ME2 = (1 - k_e2);
+        private const double k_A2 = k_a * k_a;
+        private const double k_INVA2 = 1.0 / k_A2;
 
         internal static double MajorRadius
         {
@@ -104,60 +109,60 @@ namespace Unity.Geospatial.Streaming
         /// <returns>The converted result.</returns>
         public static GeodeticCoordinates GetGeodeticCoordinates(double3 xzyEcef)
         {
-            //
-            //  Algorithm taken from:
-            //      https://en.wikipedia.org/wiki/Geographic_coordinate_conversion#The_application_of_Ferrari's_solution
-            //
+            //see https://hal.science/hal-01704943/file/AccurateEcefConversion-31oct2019.pdf
+            double k_CUBICROOT2 = math.pow(2, 1 / 3.0);
+            double lat, lon, alt;
             double x = xzyEcef.x;
             double y = xzyEcef.z;
             double z = xzyEcef.y;
 
-            double x2 = Square(x);
-            double y2 = Square(y);
-            double z2 = Square(z);
+            double w2 = x * x + y * y;
+            double m = w2 * k_INVA2;
+            double n = (z * z) * k_P1ME2 * k_INVA2;
+            double p = (m+n - 4 * k_HALFE2 * k_HALFE2) / 6;
+            double G = m * n * k_HALFE2 * k_HALFE2;
+            double H = 2 * p * p * p + G;
+            double C = math.pow(H + G + 2 * math.sqrt(H * G), 1.0 / 3.0) / k_CUBICROOT2;
+            double i = -(2 * k_HALFE2 * k_HALFE2 + m + n) / 2;
+            double P = p * p;
+            double beta = i / 3 - C - P / C;
+            double k = k_HALFE2 * k_HALFE2 * (k_HALFE2 * k_HALFE2 - m - n);
 
-            double a = k_a;
-            double a2 = Square(k_a);
-            double b2 = Square(k_b);
+            // Compute left part of t
+            double t1 = beta * beta - k;
+            double t2 = math.sqrt(t1);
+            double t3 = t2 - 0.5 * (beta + i);
+            double t4 = math.sqrt(t3);
+            // Compute right part of t
+            double t5 = 0.5 * (beta - i);
+            // t5 may accidentally drop just below zero due to numeric turbulence
+            // This only occurs at latitudes close to +- 45.3 degrees
+            t5 = math.abs(t5);
+            double t6 = math.sqrt(t5);
+            double t7 = (m < n) ? t6 : -t6;
+            // Add left and right parts
+            double t = t4 + t7;
 
-            double e2 = k_e2;
-            double e4 = Square(e2);
+            double F = math.pow(t, 4) + 2 * i * t * t + 2 * k_HALFE2 * (m-n) * t + k;
+            double dFdt = 4 * math.pow(t, 3) + 4 * i * t + 2 * k_HALFE2 * (m-n);
+            double dt = - F / dFdt;
+            double u = t + dt + k_HALFE2;
+            double v = t + dt - k_HALFE2;
+            double w = math.sqrt(w2);
 
+            double dw = w * (1 - 1 / u);
+            double dz = z * (1 - k_P1ME2 / v);
 
-            double r = math.sqrt(x2 + y2); double r2 = Square(r);
-            double ep2 = (a2 - b2) / (b2);
-            double F = 54 * b2 * z2;
-            double G = r2 + (1.0 - e2) * z2 - e2 * (a2 - b2);
+            double da = math.sqrt(dw * dw + dz * dz);
 
-            //
-            //  Guard against G going negative when altitudes are very small.
-            //
-            if (G < 1)
-                G = 1;
+            lat = math.atan2(z*u, w*v);
+            lon = math.atan2(y, x);
+            alt = (u < 1) ? -da : da;
 
-            double c = (e4 * F * r2) / Cubic(G);
-            double s = math.pow(1 + c + math.sqrt(Square(c) + 2 * c), 1.0 / 3.0);
-            double P = F / (3 * Square(s + 1.0 + 1.0 / s) * Square(G));
-            double Q = math.sqrt(1.0 + 2.0 * e4 * P);
-            double r0 =
-                ((-P * e2 * r) / (1.0 + Q)) +
-                math.sqrt((a2 / 2.0 * (1.0 + 1.0 / Q)) - ((P * (1 - e2) * z2) / (Q * (1 + Q))) - (P * r2 / 2.0));
-            double U = math.sqrt(Square(r - e2 * r0) + z2);
-            double V = math.sqrt(Square(r - e2 * r0) + (1 - e2) * z2);
-            double z0 = (b2 * z) / (a * V);
+            lat = math.degrees(lat);
+            lon = math.degrees(lon);
 
-            double elevation = U * (1.0 - b2 / (a * V));
-            double latitude = math.degrees(math.atan((z + ep2 * z0) / r));
-            double longitude = math.degrees(math.atan2(y, x));
-
-            if (double.IsNaN(latitude))
-            {
-                elevation = k_a;
-                longitude = 0;
-                latitude = 0;
-            }
-
-            return new GeodeticCoordinates(latitude, longitude, elevation);
+            return new GeodeticCoordinates(lat, lon, alt);
 
         }
 
