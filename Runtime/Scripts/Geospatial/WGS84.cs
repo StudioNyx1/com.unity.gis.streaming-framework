@@ -84,6 +84,27 @@ namespace Unity.Geospatial.Streaming
         }
 
         /// <summary>
+        /// Convert a geodetic (latitude/longitude) to a euclidean transformation.
+        /// </summary>
+        /// <param name="position">The coordinates values representing the translation expressed in degrees and minutes..</param>
+        /// <param name="rotation">The rotation where zero (0, 0, 0) is pointing to the same direction as the <see cref="Position"/> normal.</param>
+        /// <returns>The converted translation / rotation.</returns>
+        public static EuclideanTR GeodeticToXzyEcef(GeodeticCoordinates position, quaternion rotation)
+        {
+            EuclideanTR result;
+
+            double4x4 newMatrix = GetXzyEcefFromXzyEnuMatrix(position);
+
+            newMatrix.GetTRS(out result.Position, out quaternion geodeticIdentityRotation, out _);
+
+            FlipPrincipalAxes(ref rotation);
+
+            result.Rotation = math.mul(geodeticIdentityRotation, rotation);
+
+            return result;
+        }
+
+        /// <summary>
         /// Convert a geodetic (latitude/longitude) to a euclidean matrix.
         /// </summary>
         /// <param name="origin">The position to convert as a matrix.</param>
@@ -308,6 +329,12 @@ namespace Unity.Geospatial.Streaming
         private static float3 FlipPrincipalAxes(float3 input)
         {
             return new float3(input.x * -1, input.y, input.z * -1);
+        }
+
+        private static void FlipPrincipalAxes(ref quaternion input)
+        {
+            input.value.x *= -1;
+            input.value.z *= -1;
         }
     }
 }
