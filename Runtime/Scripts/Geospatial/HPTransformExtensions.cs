@@ -10,7 +10,7 @@ namespace Unity.Geospatial.Streaming
     public static class HPTransformExtensions
     {
         /// <summary>
-        /// Set current HPTransform's local position and rotation based on geodetic position coordinates, 
+        /// Set current HPTransform's local position and rotation based on geodetic position coordinates,
         /// and euler angles in degrees with range [-180, 180]
         /// </summary>
         /// <param name="transform">Set the transform values to this component.</param>
@@ -19,6 +19,14 @@ namespace Unity.Geospatial.Streaming
         public static void SetGeodeticCoordinates(this HPTransform transform, GeodeticCoordinates position, float3 eulerAngles)
         {
             EuclideanTR xzyecef = Wgs84.GeodeticToXzyEcef(position, eulerAngles);
+
+            transform.LocalPosition = xzyecef.Position;
+            transform.LocalRotation = xzyecef.Rotation;
+        }
+
+        public static void SetGeodeticCoordinates(this HPTransform transform, GeodeticCoordinates position, quaternion rotation)
+        {
+            EuclideanTR xzyecef = Wgs84.GeodeticToXzyEcef(position, rotation);
 
             transform.LocalPosition = xzyecef.Position;
             transform.LocalRotation = xzyecef.Rotation;

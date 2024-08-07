@@ -78,7 +78,7 @@ namespace Unity.Geospatial.Streaming
 
             newMatrix.GetTRS(out result.Position, out quaternion geodeticIdentityRotation, out _);
 
-            result.Rotation = math.mul(geodeticIdentityRotation, Quaternion.Euler(FlipPrincipalAxes(eulerAngles)));
+            result.Rotation = math.mul(geodeticIdentityRotation, Quaternion.Euler(eulerAngles));
 
             return result;
         }
@@ -96,8 +96,6 @@ namespace Unity.Geospatial.Streaming
             double4x4 newMatrix = GetXzyEcefFromXzyEnuMatrix(position);
 
             newMatrix.GetTRS(out result.Position, out quaternion geodeticIdentityRotation, out _);
-
-            FlipPrincipalAxes(ref rotation);
 
             result.Rotation = math.mul(geodeticIdentityRotation, rotation);
 
@@ -220,7 +218,7 @@ namespace Unity.Geospatial.Streaming
             quaternion enuFromEcefRotation = math.inverse(ecefFromEnuRotation);
             quaternion enuRotation = math.mul(enuFromEcefRotation, rotation);
 
-            result.EulerAngles = FlipPrincipalAxes(((Quaternion)enuRotation).eulerAngles);
+            result.EulerAngles = ((Quaternion)enuRotation).eulerAngles;
 
             return result;
         }
