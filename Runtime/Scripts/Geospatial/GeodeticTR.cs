@@ -12,7 +12,9 @@ namespace Unity.Geospatial.Streaming
         /// Projected position relative to a center expressed in degrees and minutes..
         /// </summary>
         public GeodeticCoordinates Position;
-        
+
+        public quaternion Rotation;
+
         /// <summary>
         /// Orientation of the vector where zero (0, 0, 0) is pointing to the same direction as the <see cref="Position"/> normal.
         /// </summary>

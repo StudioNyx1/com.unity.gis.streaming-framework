@@ -23,7 +23,7 @@ namespace Unity.Geospatial.Streaming
         private const double k_ff = (1.0 - k_f) * (1.0 - k_f);
 
         private const double k_e2 = 1 - (k_b * k_b)/(k_a * k_a);
-        
+
         private const double k_HALFE2 = k_e2 / 2;
         private const double k_P1ME2 = (1 - k_e2);
         private const double k_A2 = k_a * k_a;
@@ -218,6 +218,7 @@ namespace Unity.Geospatial.Streaming
             quaternion enuFromEcefRotation = math.inverse(ecefFromEnuRotation);
             quaternion enuRotation = math.mul(enuFromEcefRotation, rotation);
 
+            result.Rotation = enuRotation;
             result.EulerAngles = ((Quaternion)enuRotation).eulerAngles;
 
             return result;
