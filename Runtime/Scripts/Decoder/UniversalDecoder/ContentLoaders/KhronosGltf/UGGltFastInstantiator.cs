@@ -1,5 +1,6 @@
 using System.Collections.Generic;
-
+using GLTFast;
+using GLTFast.Schema;
 using Unity.Collections;
 using UnityEngine;
 using UnityEngine.Assertions;
@@ -136,13 +137,23 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
         /// <param name="position">Node's local position in hierarchy</param>
         /// <param name="rotation">Node's local rotation in hierarchy</param>
         /// <param name="scale">Node's local scale in hierarchy</param>
-        public void CreateNode(uint nodeIndex, Vector3 position, Quaternion rotation, Vector3 scale)
+        public void CreateNode(uint nodeIndex, uint? parentIndex, Vector3 position, Quaternion rotation, Vector3 scale)
         {
             InstanceData node = new InstanceData(m_DataSource, HPMath.TRS(new double3(position.x, position.y, position.z), rotation, scale), MeshID.Null, null)
             {
                 Name = $"{m_DataSource} - GLTF Node {nodeIndex}"
             };
             m_Nodes.Add(nodeIndex, node);
+        }
+
+        public void BeginScene(string name, uint[] rootNodeIndices)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void AddAnimation(AnimationClip[] animationClips)
+        {
+            throw new System.NotImplementedException();
         }
 
         /// <summary>
@@ -180,21 +191,23 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
         /// <param name="joints">If a skin was attached, the joint indices. Null otherwise (This is not implemented).</param>
         /// <param name="morphTargetWeights">Array of weights applying the skin morph shapes (This is not implemented).</param>
         /// <param name="primitiveNumeration">Primitives are numerated per Node, starting with 0 (This is not implemented).</param>
-        public void AddPrimitive(uint nodeIndex, string meshName, Mesh mesh, int[] materialIndices, uint[] joints = null, uint? rootJoint = null, float[] morphTargetWeights = null, int primitiveNumeration = 0)
+        public void AddPrimitive(uint nodeIndex, string meshName, MeshResult meshResult, uint[] joints = null, uint? rootJoint = null,
+            float[] morphTargetWeights = null, int primitiveNumeration = 0)
         {
-            MaterialID[] materialIds = new MaterialID[materialIndices.Length];
-            for (int i = 0; i < materialIndices.Length; i++)
-            {
-                int materialIndex = materialIndices[i];
-                MaterialID materialId = GenerateMaterial(materialIndex);
-                materialIds[i] = materialId;
-            }
-
-            MeshID meshId = m_CommandStack.AllocateMesh(mesh);
-
-            InstanceData primitive = new InstanceData(m_DataSource, double4x4.identity, meshId, materialIds);
-            primitive.Name = "Primitive";
-            m_Nodes[nodeIndex].AddChild(primitive);
+            // MaterialID[] materialIds = new MaterialID[materialIndices.Length];
+            // for (int i = 0; i < materialIndices.Length; i++)
+            // {
+            //     int materialIndex = materialIndices[i];
+            //     MaterialID materialId = GenerateMaterial(materialIndex);
+            //     materialIds[i] = materialId;
+            // }
+            //
+            // MeshID meshId = m_CommandStack.AllocateMesh(meshResult);
+            //
+            // InstanceData primitive = new InstanceData(m_DataSource, double4x4.identity, meshId, materialIds);
+            // primitive.Name = "Primitive";
+            // m_Nodes[nodeIndex].AddChild(primitive);
+            throw new System.NotImplementedException();
         }
 
         /// <summary>
@@ -211,7 +224,8 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
         /// <param name="rotations">Instance rotations</param>
         /// <param name="scales">Instance scales</param>
         /// <param name="primitiveNumeration">Primitives are numerated per Node, starting with 0</param>
-        public void AddPrimitiveInstanced(uint nodeIndex, string meshName, Mesh mesh, int[] materialIndices, uint instanceCount, NativeArray<Vector3>? positions, NativeArray<Quaternion>? rotations, NativeArray<Vector3>? scales, int primitiveNumeration = 0)
+        public void AddPrimitiveInstanced(uint nodeIndex, string meshName, MeshResult meshResult, uint instanceCount,
+            NativeArray<Vector3>? positions, NativeArray<Quaternion>? rotations, NativeArray<Vector3>? scales, int primitiveNumeration = 0)
         {
             //
             //  TODO - Implement this
@@ -232,7 +246,7 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
             }
             else
             {
-                GLTFast.Schema.Material gltfMaterial = m_Gltf.GetSourceMaterial(materialIndex);
+                MaterialBase gltfMaterial = m_Gltf.GetSourceMaterial(materialIndex);
 
                 Assert.IsNotNull(gltfMaterial);
 
@@ -240,11 +254,11 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
             }
         }
 
-        private MaterialID GenerateMaterial(GLTFast.Schema.Material gltfMaterial)
+        private MaterialID GenerateMaterial(MaterialBase gltfMaterial)
         {
             bool isLit = m_Lighting switch
             {
-                UGLighting.Default => (gltfMaterial.extensions?.KHR_materials_unlit == null),
+                UGLighting.Default => (gltfMaterial.Extensions?.KHR_materials_unlit == null),
                 UGLighting.Lit => true,
                 UGLighting.Unlit => false,
                 _ => throw new System.NotImplementedException()
@@ -256,11 +270,11 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
             //  Alpha Mode
             //
             MaterialAlphaMode alphaMode = MaterialAlphaMode.Opaque;
-            if (gltfMaterial.alphaModeEnum == GLTFast.Schema.Material.AlphaMode.BLEND)
+            if (gltfMaterial.GetAlphaMode() == MaterialBase.AlphaMode.Blend)
             {
                 alphaMode = MaterialAlphaMode.Transparent;
             }
-            else if (gltfMaterial.alphaModeEnum == GLTFast.Schema.Material.AlphaMode.MASK)
+            else if (gltfMaterial.GetAlphaMode() == MaterialBase.AlphaMode.Mask)
             {
                 alphaMode = MaterialAlphaMode.AlphaClip;
             }
@@ -268,17 +282,17 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
             MaterialType type = new MaterialType(lighting, alphaMode);
             MaterialID result = m_CommandStack.AllocateMaterial(type);
 
-            if (gltfMaterial.pbrMetallicRoughness != null)
+            if (gltfMaterial.PbrMetallicRoughness != null)
             {
                 //
                 //  Add Color Component
                 //
-                m_CommandStack.AddMaterialProperty(result, MaterialProperty.AlbedoColor(gltfMaterial.pbrMetallicRoughness.baseColor));
+                m_CommandStack.AddMaterialProperty(result, MaterialProperty.AlbedoColor(gltfMaterial.PbrMetallicRoughness.BaseColor));
 
                 //
                 //  Add Albedo Texture
                 //
-                GLTFast.Schema.TextureInfo textureInfo = gltfMaterial.pbrMetallicRoughness.baseColorTexture;
+                TextureInfoBase textureInfo = gltfMaterial.PbrMetallicRoughness.BaseColorTexture;
                 MappedTexture albedo = TryGetTexture(textureInfo, m_Gltf);
                 if (albedo.Texture != null)
                 {
@@ -289,12 +303,12 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
                 //
                 //  Smoothness
                 //
-                m_CommandStack.AddMaterialProperty(result, MaterialProperty.Smoothness(1.0f - gltfMaterial.pbrMetallicRoughness.roughnessFactor));
+                m_CommandStack.AddMaterialProperty(result, MaterialProperty.Smoothness(1.0f - gltfMaterial.PbrMetallicRoughness.roughnessFactor));
 
                 //
                 //  Alpha Test
                 //
-                if (gltfMaterial.alphaModeEnum == GLTFast.Schema.Material.AlphaMode.MASK)
+                if (gltfMaterial.GetAlphaMode() == MaterialBase.AlphaMode.Mask)
                 {
                     m_CommandStack.AddMaterialProperty(result, MaterialProperty.AlphaCutoff(gltfMaterial.alphaCutoff));
                 }
@@ -325,7 +339,7 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
             return result;
         }
 
-        private static Vector4 GetTextureTransform(GLTFast.Schema.TextureInfo textureInfo, bool flipY = false)
+        private static Vector4 GetTextureTransform(TextureInfoBase textureInfo, bool flipY = false)
         {
             // Scale (x,y) and Transform (z,w)
             Vector4 textureSt = new Vector4(
@@ -333,9 +347,9 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
                 0, 0 // transform
                 );
 
-            if (textureInfo?.extensions?.KHR_texture_transform != null)
+            if (textureInfo?.Extensions?.KHR_texture_transform != null)
             {
-                var tt = textureInfo.extensions.KHR_texture_transform;
+                var tt = textureInfo.Extensions.KHR_texture_transform;
                 if (tt.texCoord != 0)
                 {
                     Debug.LogError(k_MultipleUVsNotSupported);
@@ -366,7 +380,7 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
 
         }
 
-        private static MappedTexture TryGetTexture(GLTFast.Schema.TextureInfo textureInfo, GLTFast.IGltfReadable gltf)
+        private static MappedTexture TryGetTexture(TextureInfoBase textureInfo, IGltfReadable gltf)
         {
             if (textureInfo != null && textureInfo.index >= 0)
             {
@@ -402,6 +416,16 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
         public void AddCamera(uint nodeIndex, uint cameraIndex)
         {
             Debug.LogWarning("GLTF file contains camera. The streaming framework will ignore it.");
+        }
+
+        public void AddLightPunctual(uint nodeIndex, uint lightIndex)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void EndScene(uint[] rootNodeIndices)
+        {
+            throw new System.NotImplementedException();
         }
     }
 }

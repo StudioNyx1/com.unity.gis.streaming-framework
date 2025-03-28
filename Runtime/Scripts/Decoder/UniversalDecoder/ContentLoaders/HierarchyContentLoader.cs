@@ -1,6 +1,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 
 using Unity.Geospatial.HighPrecision;
@@ -86,7 +87,18 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
             {
                 return Uri is null
                     ? null
-                    : GLTFast.UriHelper.GetBaseUri(Uri);
+                    : GetBaseUri(Uri);
+            }
+
+            private Uri GetBaseUri(Uri uri)
+            {
+                if (uri == null) return null;
+                if (!uri.IsAbsoluteUri)
+                {
+                    var uriString = Path.GetDirectoryName(uri.OriginalString) ?? "";
+                    return new Uri(uriString, UriKind.Relative);
+                }
+                return new Uri(uri, ".");
             }
         }
 

@@ -3,11 +3,15 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 
 using GLTFast;
+using GLTFast.Logging;
+using GLTFast.Materials;
+using GLTFast.Schema;
 using UnityEngine;
 using Unity.Mathematics;
 
 using GltfMaterial = GLTFast.Schema.Material;
 using GltfSampler = GLTFast.Schema.Sampler;
+using Material = UnityEngine.Material;
 
 namespace Unity.Geospatial.Streaming.UniversalDecoder
 {
@@ -107,7 +111,7 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
             /// <param name="gltfMaterial">Source glTF material</param>
             /// <param name="gltf">Interface to a loaded glTF's resources (e.g. textures)</param>
             /// <returns><see langword="null"/></returns>
-            public Material GenerateMaterial(GltfMaterial gltfMaterial, IGltfReadable gltf, bool pointsSupport = false)
+            public Material GenerateMaterial(MaterialBase gltfMaterial, IGltfReadable gltf, bool pointsSupport = false)
             {
                 return null;
             }
@@ -269,10 +273,10 @@ namespace Unity.Geospatial.Streaming.UniversalDecoder
 
             return new ImportSettings
             {
-                generateMipMaps = m_TextureSettings.generateMipMaps,
-                defaultMinFilterMode = minFilter,
-                defaultMagFilterMode = magFilter,
-                anisotropicFilterLevel = m_TextureSettings.anisotropicFilterLevel
+                GenerateMipMaps = m_TextureSettings.generateMipMaps,
+                DefaultMinFilterMode = minFilter,
+                DefaultMagFilterMode = magFilter,
+                AnisotropicFilterLevel = m_TextureSettings.anisotropicFilterLevel
             };
         }
 
