@@ -10,7 +10,7 @@
       "com.unity.mathematics": "1.2.6",
       "com.unity.burst": "1.7.1",
       "com.unity.gis.high-precision-framework": "1.0.0",
-      "com.atteneder.gltfast": "4.6.0",
+      "com.unity.cloud.gltfast": "4.6.0",
       "com.unity.nuget.newtonsoft-json": "2.0.0"
     }
   }
